@@ -24,7 +24,7 @@ DNS_NAME = os.getenv('DNS_NAME')
 def get_public_ip():
     try:
         # Run the `ip` command to fetch IPv6 addresses
-        result = subprocess.run(['ip', '-6', 'addr', 'show', 'scope', 'global'], 
+        result = subprocess.run(['ip', '-6', 'addr', 'show', 'scope', 'global','temporary','dynamic'], 
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
         if result.returncode != 0:
@@ -45,7 +45,7 @@ def get_public_ip():
         return f"An error occurred: {e}"
 
 # Update Cloudflare DNS record
-def update_dns_record(ip):
+def update_dns_record(ipad):
     url = f"https://api.cloudflare.com/client/v4/zones/{ZONE_ID}/dns_records/{RECORD_ID}"
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
@@ -54,16 +54,23 @@ def update_dns_record(ip):
     data = {
         "type": "AAAA",
         "name": DNS_NAME,
-        "content": ip,
+        "content": ipad,
         "ttl": 1,  # Automatic TTL
         "proxied": True  # Enable Cloudflare proxy
     }
+    print(data)
     response = requests.put(url, json=data, headers=headers)
     return response.json()
 
 # Main
 if __name__ == "__main__":
-    public_ip = get_public_ip()
-    print(f"Current public IP: {public_ip}")
+    # Regular expression to match valid IPv6 addresses
+    ipv6_pattern = r'([0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){7})'
+
+    # Search for the IPv6 address in the string
+    match = re.search(ipv6_pattern, get_public_ip())
+    public_ip= match.group(0)
+    print(f"{public_ip}")
+    
     result = update_dns_record(public_ip)
     print(result)
